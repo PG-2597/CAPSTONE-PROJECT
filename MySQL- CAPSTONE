@@ -1,0 +1,135 @@
+Python code to connect Python with MySQL using PyMySQL:-
+
+'''import pymysql;
+
+conn = pymysql.connect(
+    host = 'localhost',
+    user = 'root',
+    password = '*******',
+    db= 'olympics',
+    )
+
+cur = conn.cursor()
+
+from sqlalchemy import create_engine
+import pandas as pd
+
+df =pd.read_csv("C:/Users/sgsanjay/Downloads/olympix_data_organized_with_headerr.csv")
+db_connection_str = "mysql+pymysql://root:priya24@127.0.0.1/olympics"
+db_connection = create_engine(db_connection_str)
+df.to_sql("olympics_table",db_connection)
+print("Data written successfully")'''
+
+
+# In the olympix database we have 10 columns and 8618 observations.
+
+/* Now, we will normalize our database:-
+1. First Normal Form(1NF): To satisfy 1NF, we have to tackle with atomicity. 
+Any table violates 1NF if it contains a composite or multi-valued attribute.
+In our database we don't have any feauture which have multiple values so, 1NF is already satisfied.
+
+2. Second Normal Form(2NF): First condition for the table to satisfy 2NF is that it should be in 1NF.
+After that there should not be any partial dependency present in the table.
+We can say that age,sport,medals are all have partial dependency. It all depend on the name or name Id.
+Hence we can make a seperate table containing all variables.
+
+We also can say that Total medals are always dependent on Gold_medal, Silver_medal,Bronze_medal .
+So we can have a seperate table to satisfy second normal form.
+
+Now, this can be solved by dividing the table and creating new primary key for that table.
+So, here we can have athlete_details table with name, age, country, sports etc and another Date table to have year and Date given.
+
+3. Third Normal Form(3NF): The same rule applies as before i.e, the table has to be in 2NF before proceeding to 3NF. 
+The other condition is there should be no transitive dependency for non-prime attributes. 
+That means non-prime attributes (which doesn’t form a candidate key) should not be dependent on other non-prime attributes 
+in a given table. 
+So a transitive dependency is a functional dependency in which X → Z (X determines Z) indirectly, 
+by virtue of X → Y and Y → Z (where it is not the case that Y → X)
+
+In our table, number of medals are indirectly depending on name. Thus, we need to seperate these tables also.
+all the number of medals in one table, name, age and country in second table, sports with new primary key sports_id in third table and date and year in fourth table.
+That's how we will create 4 tables 
+
+Table1: athlete_details
+columns= ath_id, name, age, country
+
+Table2: medal
+columns= ath_id, gold_medal, silver_medal, brone_medal, total_medal
+
+Table3: sports
+columns= sport_id, sports
+
+Table4: Date
+columns= date_given, year
+*/
+
+use olympics;
+#using database
+
+
+# Queries
+#1. Find the average number of medals won by each country
+
+Select avg(total_medals) as Average_medals, country 
+FROM medal 
+join athlete_details
+on athlete_details.ath_id = medal.ath_id
+group by country;
+order by Average_medals desc;
+
+
+# It displays the Average medals(Total medals) won by each country in decending order.
+#  ---> Zimbabwe is in top 1 with average of 4 medals , followed by Costa Rica with 2 medals
+#  ---> There are no country with Zero medals.
+#------------------------------------------------------------------------------
+
+
+#2.Display the countries and the number of gold medals they have won in decreasing order
+
+Select A.country, M.sum(gold_medal)as Number_GoldMedals 
+FROM athlete_details A
+join medal M
+on A.ath_id = M.ath_id
+group by country
+order by Number_GoldMedals desc;
+
+# It displays the summation medals won by each country in decending order specific to "Gold" .
+#  ---> Germany is in top 1 with average of 223 medals , followed by canada Rica with 168 medals.
+#  ---> There are few countries they have not got Gold medal at all.
+#------------------------------------------------------------------------------
+
+#3.Display the list of people and the medals they have won in descending order, grouped by their country
+
+Select A.name, A.country, M.sum(total_medal) as Number_TotalMedals
+FROM athlete_details A
+join medal M
+on A.ath_id = M.ath_id
+group by country
+order by Number_TotalMedals desc;
+
+# It displays the name and country with age and thier total number of medals
+#  --->Michael Phelps is in top 1 with 1312 medals and belongs to United States
+#               (Michael Fred Phelps II is an American former competitive swimmer.)
+#  --->Aleksey Nemov is in top 2 with 768 medals and belongs to Russia
+#               (Alexei Yurievich Nemov is a former artistic gymnast from Russia)
+#  --->  There are country with only single medal
+#  ---> No single name available without getting medal
+#------------------------------------------------------------------------------
+
+
+#4.Display the list of people with the medals they have won according to their age
+
+Select A.name, A.age,M.gold_medal,M.silver_medal,M.brone_medal,M.total_medal 
+FROM athlete_details A
+join medal M
+on A.ath_id = M.ath_id
+group by age;
+
+#5.Which country has won the most number of medals (cumulative)
+
+set @csum = 0;
+select country,total_medal, (@csum = @csum + total_medal) as cumulative_Total_medal
+from athlete_details
+join medal
+on athlete_details.ath_id = medal.ath_id
+group by country;
